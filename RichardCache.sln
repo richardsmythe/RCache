@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34622.214
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RCache", "RichardCache\RCache.csproj", "{EDD51A64-1A13-494D-900D-925877352EFE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{73565722-0EBC-490E-8BD1-453C6034C176}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmark", "Benchmark\Benchmark.csproj", "{D4DCEEAF-5482-42E0-A8FC-810D3511EC73}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EDD51A64-1A13-494D-900D-925877352EFE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EDD51A64-1A13-494D-900D-925877352EFE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EDD51A64-1A13-494D-900D-925877352EFE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EDD51A64-1A13-494D-900D-925877352EFE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73565722-0EBC-490E-8BD1-453C6034C176}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73565722-0EBC-490E-8BD1-453C6034C176}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73565722-0EBC-490E-8BD1-453C6034C176}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73565722-0EBC-490E-8BD1-453C6034C176}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4DCEEAF-5482-42E0-A8FC-810D3511EC73}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4DCEEAF-5482-42E0-A8FC-810D3511EC73}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4DCEEAF-5482-42E0-A8FC-810D3511EC73}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4DCEEAF-5482-42E0-A8FC-810D3511EC73}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A7EACE98-36DA-4ADD-8654-9AFDD4228844}
+	EndGlobalSection
+EndGlobal
