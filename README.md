@@ -4,9 +4,9 @@ This started as an alternative for a slower, and less efficient custom cache imp
 # Current Results
 | Method                             | CacheSize | Mean          | Error         | StdDev       | Gen0    | Allocated |
 |----------------------------------- |---------- |--------------:|--------------:|-------------:|--------:|----------:|
-| RichardCache_GetOrAdd              | 1000      |  97,323.80 ns |   2,870.55 ns |   157.344 ns | 16.4795 |  103944 B |
-| RichardCache_LookupExistingKeys    | 1000      |  94,449.57 ns |  31,470.13 ns | 1,724.984 ns | 16.4795 |  103944 B |
-| RichardCache_LookupNonExistingKeys | 1000      |      94.29 ns |      41.24 ns |     2.260 ns |  0.0166 |     104 B |
+| RCache_GetOrAdd              | 1000      |  97,323.80 ns |   2,870.55 ns |   157.344 ns | 16.4795 |  103944 B |
+| RCache_LookupExistingKeys    | 1000      |  94,449.57 ns |  31,470.13 ns | 1,724.984 ns | 16.4795 |  103944 B |
+| RCache_LookupNonExistingKeys | 1000      |      94.29 ns |      41.24 ns |     2.260 ns |  0.0166 |     104 B |
 | MemoryCache_LookupExistingKeys     | 1000      | 233,383.98 ns | 171,923.09 ns | 9,423.685 ns | 11.2305 |   71920 B |
 | MemoryCache_LookupNonExistingKeys  | 1000      |     118.52 ns |      26.42 ns |     1.448 ns |  0.0114 |      72 B |
 | MemoryCache_Add                    | 1000      | 322,932.31 ns |  92,134.45 ns | 5,050.200 ns | 52.2461 |  327920 B |
