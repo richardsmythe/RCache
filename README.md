@@ -1,5 +1,5 @@
 # RCache
-This started as an alternative for a slower, and less efficient custom cache implementation used at work. It outperforms MemoryCache, so I decided to keep investigating and see if I could match JitBit's FastCache which is incredibly fast.  
+This started as an alternative for a slower, and less efficient custom cache implementation used at work. It outperforms MemoryCache, so I decided to keep investigating and see if I could match JitBit's FastCache which is incredibly fast. Presently RCache is ~14,000 ns slower than FastCache.  
 
 # Current Results
 | Method                             | CacheSize | Mean          | Error         | StdDev       | Gen0    | Allocated |
