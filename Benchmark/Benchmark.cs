@@ -27,38 +27,37 @@ namespace Benchmarks
             for (int i = 0; i < CacheSize; i++)
             {
                 string key = $"key_{i}";
-                _richardCache.GetOrAdd(key, _ => Task.FromResult(i)).GetAwaiter().GetResult();
+                _richardCache.GetOrAdd(key, _ => i);
                 _memoryCache.Add(key, i, DateTimeOffset.MaxValue);
                 _fastCache.GetOrAdd(key, i, TimeSpan.FromSeconds(ExpirationSeconds));
             }
         }
 
+
         [Benchmark]
-        public async Task RichardCache_GetOrAdd()
+        public void RichardCache_GetOrAdd()
         {
             for (int i = 0; i < CacheSize; i++)
             {
                 string key = $"key_{i}";
-                int value = await _richardCache.GetOrAdd(key, key => Task.FromResult(i));
+                int value = _richardCache.GetOrAdd(key, _ => i);
             }
         }
 
         [Benchmark]
-        public async Task RichardCache_LookupExistingKeys()
+        public void RichardCache_LookupExistingKeys()
         {
             for (int i = 0; i < CacheSize; i++)
             {
-                int value = await _richardCache.GetOrAdd($"key_{i}", key => Task.FromResult(i));
+                int value = _richardCache.GetOrAdd($"key_{i}", _ => i);
             }
         }
 
         [Benchmark]
-        public async Task RichardCache_LookupNonExistingKeys()
+        public void RichardCache_LookupNonExistingKeys()
         {
-            int value = await _richardCache.GetOrAdd($"key_{CacheSize + 1}", key => Task.FromResult(CacheSize + 1));
+            int value = _richardCache.GetOrAdd($"key_{CacheSize + 1}", _ => CacheSize + 1);
         }
-
-
 
         [Benchmark]
         public void MemoryCache_LookupExistingKeys()
