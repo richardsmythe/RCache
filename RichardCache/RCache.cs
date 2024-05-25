@@ -21,22 +21,23 @@ namespace RichardCache
         private readonly int _expirationMilliseconds;
         private readonly SemaphoreSlim _cleanupSemaphore = new SemaphoreSlim(1);
         private bool _disposed = false;
-        private readonly Timer _cleanupTimer;
 
-        public RCache() : this(60, TimeSpan.FromSeconds(60)){}
-        public RCache(int expirationSeconds, TimeSpan cleanupInterval) 
-            => _expirationMilliseconds = expirationSeconds * 1000;        
+        public RCache() : this(60) { }
+        public RCache(int expirationSeconds)
+            => _expirationMilliseconds = expirationSeconds * 1000;
 
         public int Count => _cache.Count;
         public IEnumerable<TKey> Keys => _cache.Keys;
 
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> factory)
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(RCache<TKey, TValue>), "The cache has been disposed already.");
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(RCache<TKey, TValue>), "The cache has been disposed already.");
 
             int attempt = 0;
             while (true)
             {
+                // Check if the key exists in the cache
                 if (_cache.TryGetValue(key, out var cacheEntry))
                 {
                     if (cacheEntry.IsExpired(Environment.TickCount))
@@ -48,59 +49,65 @@ namespace RichardCache
                         return (TValue)cacheEntry.Value;
                     }
                 }
-
-                var newCacheEntry = new CacheEntry();
-                var existingCacheEntry = _cache.GetOrAdd(key, newCacheEntry);
-                if (existingCacheEntry == newCacheEntry)
-                {
-                    try
-                    {
-                        var value = factory(key);
-                        var expirationTime = Environment.TickCount + _expirationMilliseconds;
-                        newCacheEntry.SetValue(value, expirationTime);
-                        return value;
-                    }
-                    catch (Exception e)
-                    {
-                        _cache.TryRemove(key, out _);
-                        newCacheEntry.SetException(e);
-                    }
-                }
                 else
                 {
-                    Thread.Sleep(BackOffDelay(attempt));
-                    attempt++;
+                    var newCacheEntry = new CacheEntry();
+                    var existingCacheEntry = _cache.GetOrAdd(key, newCacheEntry);
+                    if (existingCacheEntry == newCacheEntry)
+                    {
+                        try
+                        {
+                            var value = factory(key);
+                            var expirationTime = Environment.TickCount + _expirationMilliseconds;
+                            newCacheEntry.SetValue(value, expirationTime);
+                            return value;
+                        }
+                        catch (Exception e)
+                        {
+                            _cache.TryRemove(key, out _);
+                            newCacheEntry.SetException(e);
+                            throw;
+                        }
+                    }
+                    else
+                    {
+                        Thread.Sleep(BackOffDelay(attempt));
+                        attempt++;
+                    }
                 }
             }
         }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private TimeSpan BackOffDelay(int attempt) => TimeSpan.FromMilliseconds(100 * Math.Pow(2, attempt));
-              
+
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposed)
+            if (_disposed) return;
+            if (disposing)
             {
-                if (disposing)
+                _cleanupSemaphore.Wait();
+                try
                 {
-                    _disposed = true;
-                    _cleanupTimer.Dispose();
-                    _cleanupSemaphore.Wait();
-                    foreach (var entry in _cache)
+                    foreach (var entry in _cache.Values)
                     {
-                        if (entry.Value.TaskStatus == TaskStatus.RanToCompletion)
+                        if (entry.TaskStatus == TaskStatus.RanToCompletion && entry.Value is IDisposable disposable)
                         {
-                            if (entry.Value.Value is IDisposable disposableValue)
-                            {
-                                disposableValue.Dispose();
-                            }
+                            disposable.Dispose();
                         }
                     }
                     _cache.Clear();
+                }
+                finally
+                {
                     _cleanupSemaphore.Release();
                 }
+                _cleanupSemaphore.Dispose();
             }
+            _disposed = true;
         }
+
 
         public void Dispose()
         {

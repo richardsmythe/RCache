@@ -1,4 +1,5 @@
 ﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Jobs;
 using Jitbit.Utils;
 using RichardCache;
 using System.Runtime.Caching;
@@ -6,7 +7,7 @@ using System.Runtime.Caching;
 namespace Benchmarks
 {
     [MemoryDiagnoser]
-    [SimpleJob]
+    [SimpleJob(launchCount:2, warmupCount:2, iterationCount: 2)]
     public class Benchmark
     {
         [Params(1000)]
@@ -59,29 +60,29 @@ namespace Benchmarks
             int value = _richardCache.GetOrAdd($"key_{CacheSize + 1}", _ => CacheSize + 1);
         }
 
-        [Benchmark]
-        public void MemoryCache_LookupExistingKeys()
-        {
-            for (int i = 0; i < CacheSize; i++)
-            {
-                var value = _memoryCache.Get($"key_{i}");
-            }
-        }
+        //[Benchmark]
+        //public void MemoryCache_LookupExistingKeys()
+        //{
+        //    for (int i = 0; i < CacheSize; i++)
+        //    {
+        //        var value = _memoryCache.Get($"key_{i}");
+        //    }
+        //}
 
-        [Benchmark]
-        public void MemoryCache_LookupNonExistingKeys()
-        {
-            var value = _memoryCache.Get($"key_{CacheSize + 1}");
-        }
+        //[Benchmark]
+        //public void MemoryCache_LookupNonExistingKeys()
+        //{
+        //    var value = _memoryCache.Get($"key_{CacheSize + 1}");
+        //}
 
-        [Benchmark]
-        public void MemoryCache_Add()
-        {
-            for (int i = 0; i < CacheSize; i++)
-            {
-                _memoryCache.Add($"key_{i}", CacheSize + 1, DateTimeOffset.MaxValue);
-            }
-        }
+        //[Benchmark]
+        //public void MemoryCache_Add()
+        //{
+        //    for (int i = 0; i < CacheSize; i++)
+        //    {
+        //        _memoryCache.Add($"key_{i}", CacheSize + 1, DateTimeOffset.MaxValue);
+        //    }
+        //}
 
         [Benchmark]
         public void FastCache_GetOrAdd()

@@ -57,7 +57,7 @@ namespace Tests
         [Fact]
         public void Test_Cache_Expiration()
         {
-            ICache<string, int> cache = new RCache<string, int>(5, TimeSpan.FromSeconds(1));
+            ICache<string, int> cache = new RCache<string, int>(5);
             string key = "test_key";
             int expectedValue = 123;
             int retrievedValue = cache.GetOrAdd(key, k => expectedValue);
