@@ -7,7 +7,7 @@ using System.Runtime.Caching;
 namespace Benchmarks
 {
     [MemoryDiagnoser]
-    [SimpleJob(launchCount:2, warmupCount:2, iterationCount: 2)]
+    [SimpleJob(launchCount:2,warmupCount:2,iterationCount:2)]
     public class Benchmark
     {
         [Params(1000)]
@@ -15,12 +15,12 @@ namespace Benchmarks
         private ICache<string, int> _richardCache;
         private MemoryCache _memoryCache;
         private FastCache<string, int> _fastCache;
-        private const int ExpirationSeconds = 60;
+        private const int ExpirationMilliseconds = 60000;
 
         [GlobalSetup]
         public void Setup()
         {
-            _richardCache = new RCache<string, int>();
+            _richardCache = new RCache<string, int>(ExpirationMilliseconds);
             _memoryCache = new MemoryCache("MemoryCacheTest");
             _fastCache = new FastCache<string, int>();
 
@@ -28,9 +28,9 @@ namespace Benchmarks
             for (int i = 0; i < CacheSize; i++)
             {
                 string key = $"key_{i}";
-                _richardCache.GetOrAdd(key, _ => i);
+                _richardCache.GetOrAdd(key, _ => i); // default expiration is 10000
                 _memoryCache.Add(key, i, DateTimeOffset.MaxValue);
-                _fastCache.GetOrAdd(key, i, TimeSpan.FromSeconds(ExpirationSeconds));
+                _fastCache.GetOrAdd(key, i, TimeSpan.FromSeconds(ExpirationMilliseconds));
             }
         }
 
@@ -89,7 +89,7 @@ namespace Benchmarks
         {
             for (int i = 0; i < CacheSize; i++)
             {
-                _fastCache.GetOrAdd($"key_{i}", i, TimeSpan.FromSeconds(ExpirationSeconds));
+                _fastCache.GetOrAdd($"key_{i}", i, TimeSpan.FromSeconds(ExpirationMilliseconds));
             }
         }
 

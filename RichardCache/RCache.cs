@@ -18,26 +18,23 @@ namespace RichardCache
     public class RCache<TKey, TValue> : ICache<TKey, TValue> where TKey : notnull
     {
         private readonly ConcurrentDictionary<TKey, CacheEntry> _cache = new ConcurrentDictionary<TKey, CacheEntry>();
+        private static readonly ThreadLocal<Random> _random = new ThreadLocal<Random>(() => new Random());
         private readonly int _expirationMilliseconds;
         private readonly SemaphoreSlim _cleanupSemaphore = new SemaphoreSlim(1);
         private bool _disposed = false;
 
-        public RCache() : this(60) { }
-        public RCache(int expirationSeconds)
-            => _expirationMilliseconds = expirationSeconds * 1000;
+        public RCache() : this(10000) { }
+        public RCache(int expirationMilliseconds)
+            => _expirationMilliseconds = expirationMilliseconds;
 
         public int Count => _cache.Count;
         public IEnumerable<TKey> Keys => _cache.Keys;
 
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> factory)
         {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(RCache<TKey, TValue>), "The cache has been disposed already.");
-
             int attempt = 0;
             while (true)
             {
-                // Check if the key exists in the cache
                 if (_cache.TryGetValue(key, out var cacheEntry))
                 {
                     if (cacheEntry.IsExpired(Environment.TickCount))
@@ -79,8 +76,21 @@ namespace RichardCache
         }
 
 
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private TimeSpan BackOffDelay(int attempt) => TimeSpan.FromMilliseconds(100 * Math.Pow(2, attempt));
+        private TimeSpan BackOffDelay(int attempt)
+        {
+            const int baseDelayMs = 100;
+            const int maxDelayMs = 1000;
+            const double multiplier = 2.0;
+            double exponentialDelay = baseDelayMs * Math.Pow(multiplier, attempt);
+            double cappedDelay = Math.Min(exponentialDelay, maxDelayMs);
+            int hash = GetHashCode();
+            double jitter = (hash % 100); // ensure jitter is between 0 and 99ms
+            double finalDelay = cappedDelay + jitter;
+
+            return TimeSpan.FromMilliseconds(finalDelay);
+        }
 
         protected virtual void Dispose(bool disposing)
         {
