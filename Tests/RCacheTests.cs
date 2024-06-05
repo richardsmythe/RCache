@@ -1,6 +1,3 @@
-using System;
-using System.Linq;
-using Xunit;
 using RichardCache;
 
 namespace Tests
@@ -10,7 +7,7 @@ namespace Tests
         [Fact]
         public void Test_Cache_AddAndGet()
         {
-            ICache<string, int> cache = new RCache<string, int>();
+            var cache = new RCache<string, int>();
             string key = "test_key";
             int expectedValue = 123;
             int retrievedValue = cache.GetOrAdd(key, k => expectedValue);
@@ -40,7 +37,7 @@ namespace Tests
         [Fact]
         public async Task Test_Cache_Maintain_Consistency_Under_Concurrent_Access()
         {
-            ICache<int, string> cache = new RCache<int, string>();
+            var cache = new RCache<int, string>();
             int threads = 50;
             int iterationsPerThread = 100;
             var tasks = Enumerable.Range(0, threads).Select(async threadId =>
@@ -57,7 +54,7 @@ namespace Tests
         [Fact]
         public void Test_Cache_Expiration()
         {
-            ICache<string, int> cache = new RCache<string, int>(5);
+            var cache = new RCache<string, int>(5);
             string key = "test_key";
             int expectedValue = 123;
             int retrievedValue = cache.GetOrAdd(key, k => expectedValue);
@@ -70,7 +67,7 @@ namespace Tests
         [Fact]
         public void Test_Cache_LongRunningFactory()
         {
-            ICache<string, int> cache = new RCache<string, int>();
+            var cache = new RCache<string, int>();
             string key = "long_running";
             int value = 123;
             var longRunningFactoryTask = cache.GetOrAdd(key, k =>
@@ -89,7 +86,7 @@ namespace Tests
         [Fact]
         public async Task Test_BackOffDelay()
         {
-            ICache<int, string> cache = new RCache<int, string>();
+            var cache = new RCache<int, string>();
             int key = 1;
             string value = "test_value";
             Func<int, string> longRunningFactoryTask = k =>
@@ -108,7 +105,5 @@ namespace Tests
             string finalValue = cache.GetOrAdd(key, longRunningFactoryTask);
             Assert.Equal(value, finalValue);
         }
-
-
     }
 }

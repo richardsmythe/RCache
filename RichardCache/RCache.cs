@@ -1,29 +1,21 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace RichardCache
 {
-    public interface ICache<TKey, TValue> : IDisposable
+    public class RCache<TKey, TValue> : IDisposable where TKey : notnull
     {
-        TValue GetOrAdd(TKey key, Func<TKey, TValue> factory);
-        int Count { get; }
-        IEnumerable<TKey> Keys { get; }
-    }
-
-    public class RCache<TKey, TValue> : ICache<TKey, TValue> where TKey : notnull
-    {
-        private readonly ConcurrentDictionary<TKey, CacheEntry> _cache = new ConcurrentDictionary<TKey, CacheEntry>();
+        private readonly ConcurrentDictionary<TKey, CacheEntry<TValue>> _cache = new ConcurrentDictionary<TKey, CacheEntry<TValue>>();
         private static readonly ThreadLocal<Random> _random = new ThreadLocal<Random>(() => new Random());
         private readonly int _expirationMilliseconds;
         private readonly SemaphoreSlim _cleanupSemaphore = new SemaphoreSlim(1);
         private bool _disposed = false;
 
-        public RCache() : this(10000) { }
+        public RCache() : this(60000) { }
         public RCache(int expirationMilliseconds)
             => _expirationMilliseconds = expirationMilliseconds;
 
@@ -43,28 +35,19 @@ namespace RichardCache
                     }
                     else
                     {
-                        return (TValue)cacheEntry.Value;
+                        return cacheEntry.Value;
                     }
                 }
                 else
                 {
-                    var newCacheEntry = new CacheEntry();
+                    var newCacheEntry = new CacheEntry<TValue>();
                     var existingCacheEntry = _cache.GetOrAdd(key, newCacheEntry);
                     if (existingCacheEntry == newCacheEntry)
                     {
-                        try
-                        {
-                            var value = factory(key);
-                            var expirationTime = Environment.TickCount + _expirationMilliseconds;
-                            newCacheEntry.SetValue(value, expirationTime);
-                            return value;
-                        }
-                        catch (Exception e)
-                        {
-                            _cache.TryRemove(key, out _);
-                            newCacheEntry.SetException(e);
-                            throw;
-                        }
+                        var value = factory(key);
+                        var expirationTime = Environment.TickCount + _expirationMilliseconds;
+                        newCacheEntry.SetValue(value, expirationTime);
+                        return value;
                     }
                     else
                     {
@@ -75,21 +58,16 @@ namespace RichardCache
             }
         }
 
-
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private TimeSpan BackOffDelay(int attempt)
         {
             const int baseDelayMs = 100;
-            const int maxDelayMs = 1000;
-            const double multiplier = 2.0;
-            double exponentialDelay = baseDelayMs * Math.Pow(multiplier, attempt);
-            double cappedDelay = Math.Min(exponentialDelay, maxDelayMs);
-            int hash = GetHashCode();
-            double jitter = (hash % 100); // ensure jitter is between 0 and 99ms
-            double finalDelay = cappedDelay + jitter;
-
-            return TimeSpan.FromMilliseconds(finalDelay);
+            const int maxDelayMs = 10000;
+            double maxDelay = baseDelayMs * Math.Pow(2, attempt);
+            int tickCount = Environment.TickCount;
+            double jitter = (tickCount % 100);
+            double delay = jitter * Math.Min(maxDelay, maxDelayMs);
+            return TimeSpan.FromMilliseconds(delay);
         }
 
         protected virtual void Dispose(bool disposing)
@@ -118,7 +96,6 @@ namespace RichardCache
             _disposed = true;
         }
 
-
         public void Dispose()
         {
             Dispose(true);
@@ -126,20 +103,13 @@ namespace RichardCache
         }
     }
 
-    /// <summary>
-    /// Represents an entry in the cache, encapsulates a value along with its expiration time.
-    /// The completion of cache operations within a TaskCompletionSource helps
-    /// the interface remains consistent regardless of whether the actual operation is asynchronous. 
-    /// This can simplify usage, as they can await the completion of cache operations uniformly, 
-    /// whether they are synchronous or asynchronous. Plus, future revisions may use async.
-    /// </summary>
-    public class CacheEntry
+    public class CacheEntry<TValue>
     {
-        private object _value;
+        private TValue _value;
         private int _expirationTime;
-        private readonly TaskCompletionSource<object> _tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<TValue> _tcs = new TaskCompletionSource<TValue>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public object Value
+        public TValue Value
         {
             get
             {
@@ -153,7 +123,7 @@ namespace RichardCache
         public bool IsExpired(int currentTime) => currentTime >= _expirationTime;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetValue(object value, int expirationTime)
+        public void SetValue(TValue value, int expirationTime)
         {
             _value = value;
             _expirationTime = expirationTime;
