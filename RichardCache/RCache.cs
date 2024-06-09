@@ -3,14 +3,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace RichardCache
 {
     public class RCache<TKey, TValue> : IDisposable where TKey : notnull
     {
         private readonly ConcurrentDictionary<TKey, CacheEntry<TValue>> _cache = new ConcurrentDictionary<TKey, CacheEntry<TValue>>();
-        private static readonly ThreadLocal<Random> _random = new ThreadLocal<Random>(() => new Random());
         private readonly int _expirationMilliseconds;
         private readonly SemaphoreSlim _cleanupSemaphore = new SemaphoreSlim(1);
         private bool _disposed = false;
@@ -42,7 +40,8 @@ namespace RichardCache
                 {
                     var newCacheEntry = new CacheEntry<TValue>();
                     var existingCacheEntry = _cache.GetOrAdd(key, newCacheEntry);
-                    if (existingCacheEntry == newCacheEntry)
+                    // check if the new CacheEntry is the one actually added to the dictionary
+                    if (ReferenceEquals(existingCacheEntry, newCacheEntry))
                     {
                         var value = factory(key);
                         var expirationTime = Environment.TickCount + _expirationMilliseconds;
@@ -61,11 +60,11 @@ namespace RichardCache
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private TimeSpan BackOffDelay(int attempt)
         {
-            const int baseDelayMs = 100;
-            const int maxDelayMs = 10000;
+            int baseDelayMs = 100;
+            int maxDelayMs = 10000;
             double maxDelay = baseDelayMs * Math.Pow(2, attempt);
             int tickCount = Environment.TickCount;
-            double jitter = (tickCount % 100);
+            double jitter = tickCount % 100;
             double delay = jitter * Math.Min(maxDelay, maxDelayMs);
             return TimeSpan.FromMilliseconds(delay);
         }
@@ -80,7 +79,7 @@ namespace RichardCache
                 {
                     foreach (var entry in _cache.Values)
                     {
-                        if (entry.TaskStatus == TaskStatus.RanToCompletion && entry.Value is IDisposable disposable)
+                        if (entry.Value is IDisposable disposable)
                         {
                             disposable.Dispose();
                         }
@@ -103,36 +102,39 @@ namespace RichardCache
         }
     }
 
+    /// <summary>
+    /// Represents an entry in the Cache. It is ensured that each entry 
+    /// </summary>
     public class CacheEntry<TValue>
     {
         private TValue _value;
         private int _expirationTime;
-        private readonly TaskCompletionSource<TValue> _tcs = new TaskCompletionSource<TValue>(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _valueSet;
 
         public TValue Value
         {
             get
             {
-                _tcs.Task.Wait();
-                return _value ?? throw new InvalidOperationException("Value is not set.");
+                if (Volatile.Read(ref _valueSet) == 1)
+                {
+                    return _value;
+                }
+                throw new InvalidOperationException("Value is not set.");
             }
         }
-        public TaskStatus TaskStatus => _tcs.Task.Status;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsExpired(int currentTime) => currentTime >= _expirationTime;
+        public bool IsExpired(int currentTime)
+        {
+            return currentTime >= _expirationTime;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetValue(TValue value, int expirationTime)
         {
             _value = value;
             _expirationTime = expirationTime;
-            _tcs.TrySetResult(value);
-        }
-
-        public void SetException(Exception exception)
-        {
-            _tcs.TrySetException(exception);
+            Volatile.Write(ref _valueSet, 1);
         }
     }
 }

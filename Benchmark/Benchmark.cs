@@ -29,7 +29,7 @@ namespace Benchmarks
             for (int i = 0; i < CacheSize; i++)
             {
                 string key = $"key_{i}";
-                _richardCache.GetOrAdd(key, _ => i);
+                _richardCache.GetOrAdd(key, _ => i); 
                 _memoryCache.Add(key, i, DateTimeOffset.MaxValue);
                 _fastCache.GetOrAdd(key, i, TimeSpan.FromMilliseconds(ExpirationMilliseconds));
             }
@@ -60,29 +60,29 @@ namespace Benchmarks
             int value = _richardCache.GetOrAdd($"key_{CacheSize + 1}", _ => CacheSize + 1);
         }
 
-        [Benchmark]
-        public void MemoryCache_LookupExistingKeys()
-        {
-            for (int i = 0; i < CacheSize; i++)
-            {
-                var value = _memoryCache.Get($"key_{i}");
-            }
-        }
+        //[Benchmark]
+        //public void MemoryCache_LookupExistingKeys()
+        //{
+        //    for (int i = 0; i < CacheSize; i++)
+        //    {
+        //        var value = _memoryCache.Get($"key_{i}");
+        //    }
+        //}
 
-        [Benchmark]
-        public void MemoryCache_LookupNonExistingKeys()
-        {
-            var value = _memoryCache.Get($"key_{CacheSize + 1}");
-        }
+        //[Benchmark]
+        //public void MemoryCache_LookupNonExistingKeys()
+        //{
+        //    var value = _memoryCache.Get($"key_{CacheSize + 1}");
+        //}
 
-        [Benchmark]
-        public void MemoryCache_Add()
-        {
-            for (int i = 0; i < CacheSize; i++)
-            {
-                _memoryCache.Add($"key_{i}", CacheSize + 1, DateTimeOffset.MaxValue);
-            }
-        }
+        //[Benchmark]
+        //public void MemoryCache_Add()
+        //{
+        //    for (int i = 0; i < CacheSize; i++)
+        //    {
+        //        _memoryCache.Add($"key_{i}", CacheSize + 1, DateTimeOffset.MaxValue);
+        //    }
+        //}
 
         [Benchmark]
         public void FastCache_GetOrAdd()
