@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace RichardCache
 {
@@ -10,10 +11,9 @@ namespace RichardCache
     {
         private readonly ConcurrentDictionary<TKey, CacheEntry<TValue>> _cache = new ConcurrentDictionary<TKey, CacheEntry<TValue>>();
         private readonly int _expirationMilliseconds;
-        private readonly SemaphoreSlim _cleanupSemaphore = new SemaphoreSlim(1);
         private bool _disposed = false;
 
-        public RCache() : this(60000) { }
+        public RCache() : this(100000) { }
         public RCache(int expirationMilliseconds)
             => _expirationMilliseconds = expirationMilliseconds;
 
@@ -27,45 +27,39 @@ namespace RichardCache
             {
                 if (_cache.TryGetValue(key, out var cacheEntry))
                 {
-                    if (cacheEntry.IsExpired(Environment.TickCount))
-                    {
-                        _cache.TryRemove(key, out _);
-                    }
-                    else
+                    if (!cacheEntry.IsExpired(Environment.TickCount))
                     {
                         return cacheEntry.Value;
                     }
-                }
-                else
-                {
-                    var newCacheEntry = new CacheEntry<TValue>();
-                    var existingCacheEntry = _cache.GetOrAdd(key, newCacheEntry);
-                    // check if the new CacheEntry is the one actually added to the dictionary
-                    if (ReferenceEquals(existingCacheEntry, newCacheEntry))
-                    {
-                        var value = factory(key);
-                        var expirationTime = Environment.TickCount + _expirationMilliseconds;
-                        newCacheEntry.SetValue(value, expirationTime);
-                        return value;
-                    }
                     else
                     {
-                        Thread.Sleep(BackOffDelay(attempt));
-                        attempt++;
+                        _cache.TryRemove(key, out _);
                     }
                 }
+
+                var newCacheEntry = new CacheEntry<TValue>();
+                var existingCacheEntry = _cache.GetOrAdd(key, newCacheEntry);
+
+                if (existingCacheEntry.Equals(newCacheEntry))
+                {
+                    var value = factory(key);
+                    var expirationTime = Environment.TickCount + _expirationMilliseconds;
+                    newCacheEntry.SetValue(value, expirationTime);                 
+                    _cache[key] = newCacheEntry;
+                    return value;
+                }
+                Thread.Sleep(BackOffDelay(attempt));
+                attempt++;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private TimeSpan BackOffDelay(int attempt)
         {
-            int baseDelayMs = 100;
-            int maxDelayMs = 10000;
-            double maxDelay = baseDelayMs * Math.Pow(2, attempt);
-            int tickCount = Environment.TickCount;
-            double jitter = tickCount % 100;
-            double delay = jitter * Math.Min(maxDelay, maxDelayMs);
+            int baseDelayMs = 10;
+            int maxDelayMs = 100;
+            int delay = baseDelayMs * (attempt + 1);
+            delay = Math.Min(delay, maxDelayMs);
             return TimeSpan.FromMilliseconds(delay);
         }
 
@@ -74,23 +68,14 @@ namespace RichardCache
             if (_disposed) return;
             if (disposing)
             {
-                _cleanupSemaphore.Wait();
-                try
+                foreach (var entry in _cache.Values)
                 {
-                    foreach (var entry in _cache.Values)
+                    if (entry.Value is IDisposable disposable)
                     {
-                        if (entry.Value is IDisposable disposable)
-                        {
-                            disposable.Dispose();
-                        }
+                        disposable.Dispose();
                     }
-                    _cache.Clear();
                 }
-                finally
-                {
-                    _cleanupSemaphore.Release();
-                }
-                _cleanupSemaphore.Dispose();
+                _cache.Clear();
             }
             _disposed = true;
         }
@@ -103,9 +88,9 @@ namespace RichardCache
     }
 
     /// <summary>
-    /// Represents an entry in the Cache. It is ensured that each entry 
+    /// Represents an entry in the Cache.
     /// </summary>
-    public class CacheEntry<TValue>
+    public struct CacheEntry<TValue>
     {
         private TValue _value;
         private int _expirationTime;
@@ -135,6 +120,24 @@ namespace RichardCache
             _value = value;
             _expirationTime = expirationTime;
             Volatile.Write(ref _valueSet, 1);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override bool Equals(object objInstanceA)
+        {
+            if (objInstanceA is CacheEntry<TValue> objInstanceB)
+            {
+                return EqualityComparer<TValue>.Default.Equals(_value, objInstanceB._value) &&
+                       _expirationTime == objInstanceB._expirationTime &&
+                       _valueSet == objInstanceB._valueSet;
+            }
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(_value, _expirationTime, _valueSet);
         }
     }
 }

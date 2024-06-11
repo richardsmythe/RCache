@@ -12,11 +12,10 @@ namespace Benchmarks
     {
         [Params(1000)]
         public int CacheSize { get; set; }
-
         private RCache<string, int> _richardCache;
         private MemoryCache _memoryCache;
         private FastCache<string, int> _fastCache;
-        private const int ExpirationMilliseconds = 60000;
+        private const int ExpirationMilliseconds = 100000;
 
         [GlobalSetup]
         public void Setup()
@@ -29,7 +28,7 @@ namespace Benchmarks
             for (int i = 0; i < CacheSize; i++)
             {
                 string key = $"key_{i}";
-                _richardCache.GetOrAdd(key, _ => i); 
+                _richardCache.GetOrAdd(key, _ => i);
                 _memoryCache.Add(key, i, DateTimeOffset.MaxValue);
                 _fastCache.GetOrAdd(key, i, TimeSpan.FromMilliseconds(ExpirationMilliseconds));
             }
@@ -89,7 +88,7 @@ namespace Benchmarks
         {
             for (int i = 0; i < CacheSize; i++)
             {
-                _fastCache.GetOrAdd($"key_{i}", i, TimeSpan.FromSeconds(ExpirationMilliseconds));
+                _fastCache.GetOrAdd($"key_{i}", i, TimeSpan.FromMilliseconds(ExpirationMilliseconds));
             }
         }
 
