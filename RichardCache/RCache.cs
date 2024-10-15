@@ -8,20 +8,16 @@ namespace RichardCache
 {
     public class RCache<TKey, TValue> where TKey : notnull
     {
-        private readonly ConcurrentDictionary<TKey, CacheEntry<TValue>> _cache = new ConcurrentDictionary<TKey, CacheEntry<TValue>>();
+        private readonly ConcurrentDictionary<TKey, CacheEntry<TValue>> _cache = new();
         private readonly int _expirationMilliseconds;
-        private readonly Task _cleanupTask;
-        private readonly SemaphoreSlim _cleanupSemaphore = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _cleanupSemaphore = new (1, 1);
 
         public RCache() : this(100000) { }
         public RCache(int expirationMilliseconds)
         {
             _expirationMilliseconds = expirationMilliseconds;
-            _cleanupTask = StartCleanupTask();
-        }
 
-        public int Count => _cache.Count;
-        public IEnumerable<TKey> Keys => _cache.Keys;
+        }
 
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> factory)
         {
@@ -36,54 +32,53 @@ namespace RichardCache
                     else
                     {
                         _cache.TryRemove(key, out _);
-                        TriggerCleanup();
                     }
                 }
-
-                var newCacheEntry = new CacheEntry<TValue>();
+                var newValue = factory(key);
+                var expirationTime = Environment.TickCount + _expirationMilliseconds;
+                var newCacheEntry = new CacheEntry<TValue>(newValue, expirationTime);
                 var existingCacheEntry = _cache.GetOrAdd(key, newCacheEntry);
-
                 if (existingCacheEntry.Equals(newCacheEntry))
                 {
-                    var value = factory(key);
-                    var expirationTime = Environment.TickCount + _expirationMilliseconds;
-                    _cache[key] = new CacheEntry<TValue>(value, expirationTime);
-                    TriggerCleanup();
-                    return value;
+       
+                    return newValue;
                 }
-            }
-        }
-
-        private async Task StartCleanupTask()
-        {
-
-            await _cleanupSemaphore.WaitAsync();
-            var currentTime = Environment.TickCount;
-            foreach (var (key, entry) in _cache)
-            {
-                if (entry.IsExpired(currentTime))
+                if (!existingCacheEntry.IsExpired(Environment.TickCount))
+                {
+                    return existingCacheEntry.Value;
+                }
+                else
                 {
                     _cache.TryRemove(key, out _);
                 }
             }
-            _cleanupSemaphore.Release();
-            await Task.Delay(_expirationMilliseconds);
-
         }
 
-        private void TriggerCleanup()
+        private Task StartCleanupTask()
         {
-            if (_cleanupSemaphore.CurrentCount == 1)
+            return Task.Run(async () =>
             {
-                _cleanupSemaphore.Wait();
-                _cleanupSemaphore.Release();
-            }
-        }
-
-        public void Dispose()
-        {
-            _cleanupTask.Wait();
-
+                while (true)
+                {
+                    await _cleanupSemaphore.WaitAsync();
+                    try
+                    {
+                        var currentTime = Environment.TickCount;
+                        foreach (var (key, entry) in _cache)
+                        {
+                            if (entry.IsExpired(currentTime))
+                            {
+                                _cache.TryRemove(key, out _);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        _cleanupSemaphore.Release();
+                    }
+                    await Task.Delay(_expirationMilliseconds);
+                }
+            });
         }
     }
 

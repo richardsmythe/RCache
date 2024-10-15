@@ -10,7 +10,7 @@ namespace Benchmarks
     [ShortRunJob]
     public class Benchmark
     {
-        [Params(1000)]
+        [Params(1000,100)]
         public int CacheSize { get; set; }
         private RCache<string, int> _richardCache;
         private MemoryCache _memoryCache;

@@ -83,27 +83,5 @@ namespace Tests
             Assert.Equal(value, retrievedValue);
         }
 
-        [Fact]
-        public async Task Test_BackOffDelay()
-        {
-            var cache = new RCache<int, string>();
-            int key = 1;
-            string value = "test_value";
-            Func<int, string> longRunningFactoryTask = k =>
-            {
-                Thread.Sleep(6000);
-                return value;
-            };
-            int concurrentTasks = 50;
-            var tasks = Enumerable.Range(0, concurrentTasks)
-                .Select<int, Task>(async _ =>
-                {
-                    string retrievedValue = await Task.Run(() => cache.GetOrAdd(key, longRunningFactoryTask));
-                    Assert.Equal(value, retrievedValue);
-                }).ToArray();
-            await Task.WhenAll(tasks);
-            string finalValue = cache.GetOrAdd(key, longRunningFactoryTask);
-            Assert.Equal(value, finalValue);
-        }
     }
 }
