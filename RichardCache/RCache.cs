@@ -16,7 +16,7 @@ namespace RichardCache
         public RCache(int expirationMilliseconds)
         {
             _expirationMilliseconds = expirationMilliseconds;
-
+            StartCleanupTask();
         }
 
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> factory)
@@ -93,6 +93,7 @@ namespace RichardCache
             _value = value;
             _expirationTime = expirationTime;
             _valueSet = 1;
+
         }
 
         public TValue Value
